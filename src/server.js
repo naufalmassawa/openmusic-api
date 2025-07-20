@@ -10,6 +10,8 @@ const SongsValidator = require('./validator/songs');
 const ClientError = require('./exceptions/ClientError');
 
 const init = async () => {
+  const albumsService = new AlbumsService();
+  const songsService = new SongsService();
   const server = Hapi.server({
     port: process.env.PORT,
     host: process.env.HOST,
@@ -24,7 +26,7 @@ const init = async () => {
   await server.register({
     plugin: albums,
     options: {
-      service: AlbumsService,
+      service: albumsService,
       validator: AlbumsValidator,
     },
   });
@@ -33,7 +35,7 @@ const init = async () => {
   await server.register({
     plugin: songs,
     options: {
-      service: SongsService,
+      service: songsService,
       validator: SongsValidator,
     },
   });
@@ -42,19 +44,20 @@ const init = async () => {
   server.ext('onPreResponse', (request, h) => {
     const { response } = request;
 
-    // Handle custom client error
-    if (response instanceof ClientError) {
-      const newResponse = h.response({
-        status: 'fail',
-        message: response.message,
-      });
-      newResponse.code(response.statusCode);
-      return newResponse;
-    }
+    if (response instanceof Error) {
+      // Handle custom client error
+      if (response instanceof ClientError) {
+        const newResponse = h.response({
+          status: 'fail',
+          message: response.message,
+        });
+        newResponse.code(response.statusCode);
+        return newResponse;
+      }
 
-    // Handle internal server error
-    if (response.isBoom) {
-      console.error(response);
+      if (!response.isServer) {
+        return h.continue;
+      }
 
       const newResponse = h.response({
         status: 'error',
