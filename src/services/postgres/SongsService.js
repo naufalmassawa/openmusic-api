@@ -25,10 +25,27 @@ class SongsService {
     return result.rows[0].id;
   }
 
-  async getSongs() {
-    const result = await this._pool.query(
-      'SELECT id, title, performer FROM songs',
-    );
+  async getSongs({ title, performer } = {}) {
+    let searchQuery = 'SELECT id, title, performer FROM songs';
+    // Array to hold conditions and parameter values
+    const conditions = [];
+    const values = [];
+
+    if (title) {
+      // Add an SQL condition and search value for title
+      conditions.push(`LOWER(title) LIKE $${conditions.length + 1}`);
+      values.push(`%${title.toLowerCase()}%`);
+    }
+    if (performer) {
+      // Add an SQL condition and search value for performer
+      conditions.push(`LOWER(performer) LIKE $${conditions.length + 1}`);
+      values.push(`%${performer.toLowerCase()}%`);
+    }
+    if (conditions.length > 0) {
+      searchQuery += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    const result = await this._pool.query(searchQuery, values);
     return result.rows.map(mapDBToSongModel);
   }
 
@@ -44,6 +61,15 @@ class SongsService {
     }
 
     return result.rows.map(mapDBToSongModel)[0];
+  }
+
+  async getSongsByAlbumId(albumId) {
+    const query = {
+      text: 'SELECT id, title, performer FROM songs WHERE album_id = $1',
+      values: [albumId],
+    };
+    const result = await this._pool.query(query);
+    return result.rows.map(mapDBToSongModel);
   }
 
   async putSongById(id, { title, year, genre, performer, duration, albumId }) {
