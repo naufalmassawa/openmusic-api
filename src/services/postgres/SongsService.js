@@ -25,28 +25,14 @@ class SongsService {
     return result.rows[0].id;
   }
 
-  async getSongs({ title, performer } = {}) {
-    let searchQuery = 'SELECT id, title, performer FROM songs';
-    // Array to hold conditions and parameter values
-    const conditions = [];
-    const values = [];
+  async getSongs({ title = '', performer = '' } = {}) {
+    const query = {
+      text: 'SELECT id, title, performer FROM songs WHERE title ILIKE $1 AND performer ILIKE $2',
+      values: [`%${title}%`, `%${performer}%`],
+    };
 
-    if (title) {
-      // Add an SQL condition and search value for title
-      conditions.push(`LOWER(title) LIKE $${conditions.length + 1}`);
-      values.push(`%${title.toLowerCase()}%`);
-    }
-    if (performer) {
-      // Add an SQL condition and search value for performer
-      conditions.push(`LOWER(performer) LIKE $${conditions.length + 1}`);
-      values.push(`%${performer.toLowerCase()}%`);
-    }
-    if (conditions.length > 0) {
-      searchQuery += ' WHERE ' + conditions.join(' AND ');
-    }
-
-    const result = await this._pool.query(searchQuery, values);
-    return result.rows.map(mapDBToSongModel);
+    const { rows } = await this._pool.query(query);
+    return rows;
   }
 
   async getSongById(id) {

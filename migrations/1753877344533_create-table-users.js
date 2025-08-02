@@ -1,9 +1,6 @@
 /**
  * @type {import('node-pg-migrate').ColumnDefinitions | undefined}
  */
-
-const { password } = require('pg/lib/defaults');
-
 /**
  * @param pgm {import('node-pg-migrate').MigrationBuilder}
  * @param run {() => void | undefined}
