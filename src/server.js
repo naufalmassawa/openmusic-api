@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const Hapi = require('@hapi/hapi');
 const Jwt = require('@hapi/jwt');
+const config = require('./utils/config');
 const ClientError = require('./exceptions/ClientError');
 
 // Albums
@@ -35,6 +36,11 @@ const collaborations = require('./api/collaborations');
 const CollaborationsService = require('./services/postgres/CollaborationsService');
 const CollaborationsValidator = require('./validator/collaborations');
 
+//Exports
+const _exports = require('./api/exports');
+const ProducerService = require('./services/rabbitmq/ProducerService');
+const ExportsValidator = require('./validator/exports');
+
 const init = async () => {
   const albumsService = new AlbumsService();
   const songsService = new SongsService();
@@ -47,11 +53,11 @@ const init = async () => {
   );
 
   const server = Hapi.server({
-    port: process.env.PORT,
-    host: process.env.HOST,
-    // debug: {
-    //   request: ['error'],
-    // },
+    port: config.app.port,
+    host: config.app.host,
+    debug: {
+      request: ['error'],
+    },
     routes: {
       cors: {
         origin: ['*'],
@@ -129,6 +135,14 @@ const init = async () => {
         playlistsService,
         usersService,
         validator: CollaborationsValidator,
+      },
+    },
+    {
+      plugin: _exports,
+      options: {
+        service: ProducerService,
+        playlistsService: playlistsService,
+        validator: ExportsValidator,
       },
     },
   ]);
