@@ -5,8 +5,9 @@ const NotFoundError = require('../../exceptions/NotFoundError');
 const { mapDBToAlbumModel } = require('../../utils/index');
 
 class AlbumsService {
-  constructor() {
+  constructor(cacheService) {
     this._pool = new Pool();
+    this._cacheService = cacheService;
   }
 
   async postAlbum({ name, year }) {
@@ -130,16 +131,40 @@ class AlbumsService {
     if (!result.rows.length) {
       throw new NotFoundError('Anda belum menyukai album ini');
     }
+
+    await this._cacheService.delete(`album_likes:${albumId}`);
   }
 
   async getAlbumLikesCount(albumId) {
-    const query = {
-      text: 'SELECT COUNT(*) FROM user_album_likes WHERE album_id = $1',
-      values: [albumId],
-    };
+    try {
+      const cached = await this._cacheService.get(`album_likes:${albumId}`);
+      if (cached !== null) {
+        return { count: parseInt(cached, 10), isCache: true };
+      }
+    } catch (error) {
+      console.error(error);
+    }
 
-    const result = await this._pool.query(query);
-    return parseInt(result.rows[0].count, 10);
+    try {
+      const query = {
+        text: 'SELECT COUNT(*) FROM user_album_likes WHERE album_id = $1',
+        values: [albumId],
+      };
+      const result = await this._pool.query(query);
+      const count = parseInt(result.rows[0].count, 10);
+
+      try {
+        await this._cacheService.set(`album_likes:${albumId}`, count);
+      } catch (error) {
+        console.error(error);
+      }
+
+      return { count, isCache: false };
+    } catch (error) {
+      console.error(error);
+
+      return { count: 0, isCache: false };
+    }
   }
 }
 
